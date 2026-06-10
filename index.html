@@ -48,15 +48,23 @@ async function startScanner() {
   try {
     await html5QrCode.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 150 } },
+      {
+  fps: 15,
+  qrbox: { width: 300, height: 120 }
+},
       async (decodedText) => {
-        const isbn = decodedText.replace(/[^0-9Xx]/g, "");
-        if (isbn.length === 10 || isbn.length === 13) {
-          document.getElementById("isbn").value = isbn;
-          await stopScanner();
-          lookupBook();
-        }
-      }
+  const isbn = decodedText.replace(/[^0-9]/g, "");
+
+  // Only accept real ISBN-13 barcodes
+  if (
+    isbn.length === 13 &&
+    (isbn.startsWith("978") || isbn.startsWith("979"))
+  ) {
+    document.getElementById("isbn").value = isbn;
+    await stopScanner();
+    lookupBook();
+  }
+}
     );
   } catch {
     alert("Camera could not start. Allow camera permission.");
