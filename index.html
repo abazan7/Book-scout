@@ -3,7 +3,10 @@
 <head>
   <title>Book Scout</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
+
 <body style="font-family: Arial; padding:20px;">
   <h1>📚 Book Scout</h1>
 
@@ -14,20 +17,73 @@
     style="width:100%;padding:12px;font-size:18px;"
   >
 
-<button onclick="lookupBook()" style="width:100%;padding:12px;margin-top:10px;">
-  Search
-</button>
+  <button onclick="lookupBook()" style="width:100%;padding:12px;margin-top:10px;">
+    Search
+  </button>
 
-<button onclick="scanISBN()" style="width:100%;padding:12px;margin-top:10px;background:#4CAF50;color:white;border:none;">
-  Scan Barcode
-</button>
+  <button
+    onclick="startScanner()"
+    style="width:100%;padding:12px;margin-top:10px;background:#4CAF50;color:white;border:none;"
+  >
+    Scan Barcode
+  </button>
+
+  <button
+    onclick="stopScanner()"
+    style="width:100%;padding:12px;margin-top:10px;background:#999;color:white;border:none;"
+  >
+    Stop Scanner
+  </button>
+
+  <div id="reader" style="width:100%;margin-top:20px;"></div>
 
   <div id="result" style="margin-top:20px;"></div>
 
   <script>
-    function scanISBN() {
-  alert("Camera scanner coming next. This button is a placeholder.");
-}
+    let html5QrCode;
+
+    async function startScanner() {
+      const reader = document.getElementById("reader");
+      reader.innerHTML = "";
+
+      html5QrCode = new Html5Qrcode("reader");
+
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 150 }
+          },
+          async (decodedText) => {
+            const isbn = decodedText.replace(/[^0-9Xx]/g, "");
+
+            if (isbn.length === 10 || isbn.length === 13) {
+              document.getElementById("isbn").value = isbn;
+              await stopScanner();
+              lookupBook();
+            }
+          },
+          (errorMessage) => {
+            // Ignore scan errors while camera is searching
+          }
+        );
+      } catch (error) {
+        alert("Camera could not start. Make sure camera permission is allowed.");
+      }
+    }
+
+    async function stopScanner() {
+      if (html5QrCode) {
+        try {
+          await html5QrCode.stop();
+          await html5QrCode.clear();
+        } catch (error) {
+          // Scanner may already be stopped
+        }
+      }
+    }
+
     async function lookupBook() {
       let isbn = document.getElementById('isbn').value.replace(/[^0-9Xx]/g, '');
       const result = document.getElementById('result');
@@ -35,11 +91,15 @@
       result.innerHTML = "Searching...";
 
       try {
-        const googleResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+        const googleResponse = await fetch(
+          `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+        );
+
         const googleData = await googleResponse.json();
 
         if (googleData.totalItems > 0) {
           const book = googleData.items[0].volumeInfo;
+
           result.innerHTML = `
             <h2>${book.title || 'No title found'}</h2>
             <p><strong>Author:</strong> ${book.authors?.join(', ') || 'Unknown'}</p>
@@ -50,8 +110,10 @@
         }
 
         const openResponse = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+
         if (openResponse.ok) {
           const openData = await openResponse.json();
+
           result.innerHTML = `
             <h2>${openData.title || 'No title found'}</h2>
             <p><strong>ISBN:</strong> ${isbn}</p>
