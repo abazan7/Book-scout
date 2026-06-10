@@ -3,7 +3,6 @@
 <head>
   <title>Book Scout</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 
@@ -21,55 +20,52 @@
     Search
   </button>
 
-  <button
-    onclick="startScanner()"
-    style="width:100%;padding:12px;margin-top:10px;background:#4CAF50;color:white;border:none;"
-  >
+  <button onclick="startScanner()" style="width:100%;padding:12px;margin-top:10px;background:#4CAF50;color:white;border:none;">
     Scan Barcode
   </button>
 
-  <button
-    onclick="stopScanner()"
-    style="width:100%;padding:12px;margin-top:10px;background:#999;color:white;border:none;"
-  >
+  <button onclick="stopScanner()" style="width:100%;padding:12px;margin-top:10px;background:#999;color:white;border:none;">
     Stop Scanner
   </button>
 
   <div id="reader" style="width:100%;margin-top:20px;"></div>
-
   <div id="result" style="margin-top:20px;"></div>
+
+  <hr style="margin:30px 0;">
+
+  <h2>Kept Books</h2>
+  <button onclick="exportCSV()" style="width:100%;padding:12px;background:#222;color:white;border:none;">
+    Export CSV
+  </button>
+
+  <div id="log" style="margin-top:20px;"></div>
 
   <script>
     let html5QrCode;
+    let currentBook = null;
+    let keptBooks = JSON.parse(localStorage.getItem("keptBooks")) || [];
+
+    renderLog();
 
     async function startScanner() {
-      const reader = document.getElementById("reader");
-      reader.innerHTML = "";
-
+      document.getElementById("reader").innerHTML = "";
       html5QrCode = new Html5Qrcode("reader");
 
       try {
         await html5QrCode.start(
           { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 150 }
-          },
+          { fps: 10, qrbox: { width: 250, height: 150 } },
           async (decodedText) => {
             const isbn = decodedText.replace(/[^0-9Xx]/g, "");
-
             if (isbn.length === 10 || isbn.length === 13) {
               document.getElementById("isbn").value = isbn;
               await stopScanner();
               lookupBook();
             }
-          },
-          (errorMessage) => {
-            // Ignore scan errors while camera is searching
           }
         );
       } catch (error) {
-        alert("Camera could not start. Make sure camera permission is allowed.");
+        alert("Camera could not start. Allow camera permission.");
       }
     }
 
@@ -78,47 +74,42 @@
         try {
           await html5QrCode.stop();
           await html5QrCode.clear();
-        } catch (error) {
-          // Scanner may already be stopped
-        }
+        } catch (error) {}
       }
     }
 
     async function lookupBook() {
-      let isbn = document.getElementById('isbn').value.replace(/[^0-9Xx]/g, '');
-      const result = document.getElementById('result');
-
+      let isbn = document.getElementById("isbn").value.replace(/[^0-9Xx]/g, "");
+      const result = document.getElementById("result");
       result.innerHTML = "Searching...";
+      currentBook = null;
 
       try {
-        const googleResponse = await fetch(
-          `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
-        );
-
+        const googleResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
         const googleData = await googleResponse.json();
 
         if (googleData.totalItems > 0) {
           const book = googleData.items[0].volumeInfo;
-
-          result.innerHTML = `
-            <h2>${book.title || 'No title found'}</h2>
-            <p><strong>Author:</strong> ${book.authors?.join(', ') || 'Unknown'}</p>
-            <p><strong>ISBN:</strong> ${isbn}</p>
-            ${book.imageLinks?.thumbnail ? `<img src="${book.imageLinks.thumbnail}" style="max-width:150px;">` : ''}
-          `;
+          showBook({
+            isbn,
+            title: book.title || "No title found",
+            author: book.authors?.join(", ") || "Unknown",
+            source: "Google Books",
+            cover: book.imageLinks?.thumbnail || ""
+          });
           return;
         }
 
         const openResponse = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
-
         if (openResponse.ok) {
           const openData = await openResponse.json();
-
-          result.innerHTML = `
-            <h2>${openData.title || 'No title found'}</h2>
-            <p><strong>ISBN:</strong> ${isbn}</p>
-            <p>Found through Open Library backup search.</p>
-          `;
+          showBook({
+            isbn,
+            title: openData.title || "No title found",
+            author: "Unknown",
+            source: "Open Library",
+            cover: ""
+          });
           return;
         }
 
@@ -126,6 +117,87 @@
       } catch (error) {
         result.innerHTML = "Search error. Try again.";
       }
+    }
+
+    function showBook(book) {
+      currentBook = book;
+
+      document.getElementById("result").innerHTML = `
+        <h2>${book.title}</h2>
+        <p><strong>Author:</strong> ${book.author}</p>
+        <p><strong>ISBN:</strong> ${book.isbn}</p>
+        <p><strong>Source:</strong> ${book.source}</p>
+        ${book.cover ? `<img src="${book.cover}" style="max-width:150px;">` : ""}
+        <button onclick="keepBook()" style="width:100%;padding:14px;margin-top:15px;background:#1f9d55;color:white;border:none;font-size:18px;">
+          KEEP
+        </button>
+        <button onclick="skipBook()" style="width:100%;padding:14px;margin-top:10px;background:#d9534f;color:white;border:none;font-size:18px;">
+          SKIP
+        </button>
+      `;
+    }
+
+    function keepBook() {
+      if (!currentBook) return;
+
+      keptBooks.push({
+        isbn: currentBook.isbn,
+        title: currentBook.title,
+        author: currentBook.author,
+        date: new Date().toLocaleString()
+      });
+
+      localStorage.setItem("keptBooks", JSON.stringify(keptBooks));
+      renderLog();
+      document.getElementById("result").innerHTML = "Saved to kept books.";
+      document.getElementById("isbn").value = "";
+    }
+
+    function skipBook() {
+      document.getElementById("result").innerHTML = "Skipped.";
+      document.getElementById("isbn").value = "";
+      currentBook = null;
+    }
+
+    function renderLog() {
+      const log = document.getElementById("log");
+
+      if (keptBooks.length === 0) {
+        log.innerHTML = "<p>No kept books yet.</p>";
+        return;
+      }
+
+      log.innerHTML = keptBooks.map((book, index) => `
+        <div style="border:1px solid #ddd;padding:10px;margin-bottom:10px;">
+          <strong>${index + 1}. ${book.title}</strong><br>
+          ISBN: ${book.isbn}<br>
+          Author: ${book.author}<br>
+          Saved: ${book.date}
+        </div>
+      `).join("");
+    }
+
+    function exportCSV() {
+      if (keptBooks.length === 0) {
+        alert("No kept books to export.");
+        return;
+      }
+
+      let csv = "ISBN,Title,Author,Date\n";
+
+      keptBooks.forEach(book => {
+        csv += `"${book.isbn}","${book.title}","${book.author}","${book.date}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "book-scout-kept-books.csv";
+      a.click();
+
+      URL.revokeObjectURL(url);
     }
   </script>
 </body>
