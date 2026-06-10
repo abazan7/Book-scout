@@ -9,16 +9,10 @@
 <body style="font-family: Arial; padding:20px;">
   <h1>📚 Book Scout</h1>
 
-  <input
-    type="text"
-    id="isbn"
-    placeholder="Scan or enter ISBN"
-    style="width:100%;padding:12px;font-size:18px;"
-  >
+  <input type="text" id="isbn" placeholder="Scan or enter ISBN"
+    style="width:100%;padding:12px;font-size:18px;">
 
-  <button onclick="lookupBook()" style="width:100%;padding:12px;margin-top:10px;">
-    Search
-  </button>
+  <button onclick="lookupBook()" style="width:100%;padding:12px;margin-top:10px;">Search</button>
 
   <button onclick="startScanner()" style="width:100%;padding:12px;margin-top:10px;background:#4CAF50;color:white;border:none;">
     Scan Barcode
@@ -40,165 +34,190 @@
 
   <div id="log" style="margin-top:20px;"></div>
 
-  <script>
-    let html5QrCode;
-    let currentBook = null;
-    let keptBooks = JSON.parse(localStorage.getItem("keptBooks")) || [];
+<script>
+let html5QrCode;
+let currentBook = null;
+let keptBooks = JSON.parse(localStorage.getItem("keptBooks")) || [];
 
-    renderLog();
+renderLog();
 
-    async function startScanner() {
-      document.getElementById("reader").innerHTML = "";
-      html5QrCode = new Html5Qrcode("reader");
+async function startScanner() {
+  document.getElementById("reader").innerHTML = "";
+  html5QrCode = new Html5Qrcode("reader");
 
-      try {
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 150 } },
-          async (decodedText) => {
-            const isbn = decodedText.replace(/[^0-9Xx]/g, "");
-            if (isbn.length === 10 || isbn.length === 13) {
-              document.getElementById("isbn").value = isbn;
-              await stopScanner();
-              lookupBook();
-            }
-          }
-        );
-      } catch (error) {
-        alert("Camera could not start. Allow camera permission.");
-      }
-    }
-
-    async function stopScanner() {
-      if (html5QrCode) {
-        try {
-          await html5QrCode.stop();
-          await html5QrCode.clear();
-        } catch (error) {}
-      }
-    }
-
-    async function lookupBook() {
-      let isbn = document.getElementById("isbn").value.replace(/[^0-9Xx]/g, "");
-      const result = document.getElementById("result");
-      result.innerHTML = "Searching...";
-      currentBook = null;
-
-      try {
-        const googleResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-        const googleData = await googleResponse.json();
-
-        if (googleData.totalItems > 0) {
-          const book = googleData.items[0].volumeInfo;
-          showBook({
-            isbn,
-            title: book.title || "No title found",
-            author: book.authors?.join(", ") || "Unknown",
-            source: "Google Books",
-            cover: book.imageLinks?.thumbnail || ""
-          });
-          return;
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      async (decodedText) => {
+        const isbn = decodedText.replace(/[^0-9Xx]/g, "");
+        if (isbn.length === 10 || isbn.length === 13) {
+          document.getElementById("isbn").value = isbn;
+          await stopScanner();
+          lookupBook();
         }
+      }
+    );
+  } catch {
+    alert("Camera could not start. Allow camera permission.");
+  }
+}
 
-        const openResponse = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
-        if (openResponse.ok) {
-          const openData = await openResponse.json();
-          showBook({
-            isbn,
-            title: openData.title || "No title found",
-            author: "Unknown",
-            source: "Open Library",
-            cover: ""
-          });
-          return;
+async function stopScanner() {
+  if (html5QrCode) {
+    try {
+      await html5QrCode.stop();
+      await html5QrCode.clear();
+    } catch {}
+  }
+}
+
+async function lookupBook() {
+  let isbn = document.getElementById("isbn").value.replace(/[^0-9Xx]/g, "");
+  const result = document.getElementById("result");
+  result.innerHTML = "Searching...";
+  currentBook = null;
+
+  try {
+    const googleResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    const googleData = await googleResponse.json();
+
+    if (googleData.totalItems > 0) {
+      const book = googleData.items[0].volumeInfo;
+      showBook({
+        isbn,
+        title: book.title || "No title found",
+        author: book.authors?.join(", ") || "Unknown",
+        source: "Google Books",
+        cover: book.imageLinks?.thumbnail || `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`
+      });
+      return;
+    }
+
+    const openResponse = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+
+    if (openResponse.ok) {
+      const openData = await openResponse.json();
+
+      let author = "Unknown";
+      if (openData.authors && openData.authors.length > 0) {
+        const authorKey = openData.authors[0].key;
+        const authorResponse = await fetch(`https://openlibrary.org${authorKey}.json`);
+        if (authorResponse.ok) {
+          const authorData = await authorResponse.json();
+          author = authorData.name || "Unknown";
         }
-
-        result.innerHTML = "No book found";
-      } catch (error) {
-        result.innerHTML = "Search error. Try again.";
       }
-    }
 
-    function showBook(book) {
-      currentBook = book;
-
-      document.getElementById("result").innerHTML = `
-        <h2>${book.title}</h2>
-        <p><strong>Author:</strong> ${book.author}</p>
-        <p><strong>ISBN:</strong> ${book.isbn}</p>
-        <p><strong>Source:</strong> ${book.source}</p>
-        ${book.cover ? `<img src="${book.cover}" style="max-width:150px;">` : ""}
-        <button onclick="keepBook()" style="width:100%;padding:14px;margin-top:15px;background:#1f9d55;color:white;border:none;font-size:18px;">
-          KEEP
-        </button>
-        <button onclick="skipBook()" style="width:100%;padding:14px;margin-top:10px;background:#d9534f;color:white;border:none;font-size:18px;">
-          SKIP
-        </button>
-      `;
-    }
-
-    function keepBook() {
-      if (!currentBook) return;
-
-      keptBooks.push({
-        isbn: currentBook.isbn,
-        title: currentBook.title,
-        author: currentBook.author,
-        date: new Date().toLocaleString()
+      showBook({
+        isbn,
+        title: openData.title || "No title found",
+        author,
+        source: "Open Library",
+        cover: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`
       });
-
-      localStorage.setItem("keptBooks", JSON.stringify(keptBooks));
-      renderLog();
-      document.getElementById("result").innerHTML = "Saved to kept books.";
-      document.getElementById("isbn").value = "";
+      return;
     }
 
-    function skipBook() {
-      document.getElementById("result").innerHTML = "Skipped.";
-      document.getElementById("isbn").value = "";
-      currentBook = null;
-    }
+    result.innerHTML = "No book found";
+  } catch {
+    result.innerHTML = "Search error. Try again.";
+  }
+}
 
-    function renderLog() {
-      const log = document.getElementById("log");
+function showBook(book) {
+  currentBook = book;
 
-      if (keptBooks.length === 0) {
-        log.innerHTML = "<p>No kept books yet.</p>";
-        return;
-      }
+  document.getElementById("result").innerHTML = `
+    ${book.cover ? `<img src="${book.cover}" style="max-width:150px;margin-bottom:10px;">` : ""}
+    <h2>${book.title}</h2>
+    <p><strong>Author:</strong> ${book.author}</p>
+    <p><strong>ISBN:</strong> ${book.isbn}</p>
+    <p><strong>Source:</strong> ${book.source}</p>
 
-      log.innerHTML = keptBooks.map((book, index) => `
-        <div style="border:1px solid #ddd;padding:10px;margin-bottom:10px;">
-          <strong>${index + 1}. ${book.title}</strong><br>
-          ISBN: ${book.isbn}<br>
-          Author: ${book.author}<br>
-          Saved: ${book.date}
-        </div>
-      `).join("");
-    }
+    <button onclick="keepBook()" style="width:100%;padding:14px;margin-top:15px;background:#1f9d55;color:white;border:none;font-size:18px;">
+      KEEP
+    </button>
 
-    function exportCSV() {
-      if (keptBooks.length === 0) {
-        alert("No kept books to export.");
-        return;
-      }
+    <button onclick="skipBook()" style="width:100%;padding:14px;margin-top:10px;background:#d9534f;color:white;border:none;font-size:18px;">
+      SKIP
+    </button>
+  `;
+}
 
-      let csv = "ISBN,Title,Author,Date\n";
+function keepBook() {
+  if (!currentBook) return;
 
-      keptBooks.forEach(book => {
-        csv += `"${book.isbn}","${book.title}","${book.author}","${book.date}"\n`;
-      });
+  keptBooks.push({
+    isbn: currentBook.isbn,
+    title: currentBook.title,
+    author: currentBook.author,
+    cover: currentBook.cover,
+    date: new Date().toLocaleString()
+  });
 
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
+  localStorage.setItem("keptBooks", JSON.stringify(keptBooks));
+  renderLog();
+  document.getElementById("result").innerHTML = "Saved to kept books.";
+  document.getElementById("isbn").value = "";
+}
 
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "book-scout-kept-books.csv";
-      a.click();
+function skipBook() {
+  document.getElementById("result").innerHTML = "Skipped.";
+  document.getElementById("isbn").value = "";
+  currentBook = null;
+}
 
-      URL.revokeObjectURL(url);
-    }
-  </script>
+function removeBook(index) {
+  keptBooks.splice(index, 1);
+  localStorage.setItem("keptBooks", JSON.stringify(keptBooks));
+  renderLog();
+}
+
+function renderLog() {
+  const log = document.getElementById("log");
+
+  if (keptBooks.length === 0) {
+    log.innerHTML = "<p>No kept books yet.</p>";
+    return;
+  }
+
+  log.innerHTML = keptBooks.map((book, index) => `
+    <div style="border:1px solid #ddd;padding:10px;margin-bottom:10px;display:flex;gap:10px;">
+      ${book.cover ? `<img src="${book.cover}" style="width:70px;height:auto;">` : ""}
+      <div>
+        <strong>${index + 1}. ${book.title}</strong><br>
+        ISBN: ${book.isbn}<br>
+        Author: ${book.author}<br>
+        Saved: ${book.date}<br>
+        <button onclick="removeBook(${index})" style="margin-top:8px;background:#d9534f;color:white;border:none;padding:8px;">
+          Remove
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function exportCSV() {
+  if (keptBooks.length === 0) {
+    alert("No kept books to export.");
+    return;
+  }
+
+  let csv = "ISBN,Title,Author,Date,Cover\n";
+
+  keptBooks.forEach(book => {
+    csv += `"${book.isbn}","${book.title}","${book.author}","${book.date}","${book.cover}"\n`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "book-scout-kept-books.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
 </body>
 </html>
