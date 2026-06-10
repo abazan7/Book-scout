@@ -14,13 +14,20 @@
     style="width:100%;padding:12px;font-size:18px;"
   >
 
-  <button onclick="lookupBook()" style="width:100%;padding:12px;margin-top:10px;">
-    Search
-  </button>
+<button onclick="lookupBook()" style="width:100%;padding:12px;margin-top:10px;">
+  Search
+</button>
+
+<button onclick="scanISBN()" style="width:100%;padding:12px;margin-top:10px;background:#4CAF50;color:white;border:none;">
+  Scan Barcode
+</button>
 
   <div id="result" style="margin-top:20px;"></div>
 
   <script>
+    function scanISBN() {
+  alert("Camera scanner coming next. This button is a placeholder.");
+}
     async function lookupBook() {
       let isbn = document.getElementById('isbn').value.replace(/[^0-9Xx]/g, '');
       const result = document.getElementById('result');
