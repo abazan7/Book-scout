@@ -17,6 +17,10 @@
   <button onclick="startScanner()" style="width:100%;padding:12px;margin-top:10px;background:#4CAF50;color:white;border:none;">
     Scan Barcode
   </button>
+  <button onclick="toggleTorch()"
+  style="width:100%;padding:12px;margin-top:10px;background:#ffb300;color:white;border:none;">
+  🔦 Flashlight
+</button>
 
   <button onclick="stopScanner()" style="width:100%;padding:12px;margin-top:10px;background:#999;color:white;border:none;">
     Stop Scanner
@@ -36,6 +40,7 @@
 
 <script>
 let html5QrCode;
+let torchOn = false;
 let currentBook = null;
 let keptBooks = JSON.parse(localStorage.getItem("keptBooks")) || [];
 
@@ -225,6 +230,34 @@ function exportCSV() {
   a.download = "book-scout-kept-books.csv";
   a.click();
   URL.revokeObjectURL(url);
+}
+  async function toggleTorch() {
+
+  if (!html5QrCode) {
+    alert("Start scanner first.");
+    return;
+  }
+
+  try {
+
+    const capabilities =
+      await html5QrCode.getRunningTrackCapabilities();
+
+    if (!capabilities.torch) {
+      alert("Flashlight not supported on this device/browser.");
+      return;
+    }
+
+    torchOn = !torchOn;
+
+    await html5QrCode.applyVideoConstraints({
+      advanced: [{ torch: torchOn }]
+    });
+
+  } catch (err) {
+    console.log(err);
+    alert("Could not control flashlight.");
+  }
 }
 </script>
 </body>
