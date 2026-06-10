@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a7f73" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Book Scanner" />
+    <title>Book Scout</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="scan-panel">
+        <div class="brand-row">
+          <div class="mark">ISBN</div>
+          <div>
+            <h1>Book Scout</h1>
+            <p id="apiStatus">Checking eBay connection...</p>
+          </div>
+        </div>
+
+        <div class="camera-box">
+          <video id="video" playsinline muted></video>
+          <div class="scan-line"></div>
+          <div id="cameraState" class="camera-state">Camera idle</div>
+        </div>
+
+        <div class="controls">
+          <button id="startScan" class="primary" type="button">Start scan</button>
+          <button id="stopScan" type="button">Stop</button>
+        </div>
+
+        <form id="lookupForm" class="lookup-form">
+          <label for="codeInput">UPC / ISBN</label>
+          <div class="input-row">
+            <input id="codeInput" inputmode="numeric" autocomplete="off" placeholder="9780143127741" />
+            <button class="primary" type="submit">Look up</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="results-panel">
+        <article id="bookCard" class="book-card" hidden>
+          <img id="bookCover" alt="" />
+          <div>
+            <p class="eyebrow">Book</p>
+            <h2 id="bookTitle">Book title</h2>
+            <p id="bookAuthor" class="book-meta"></p>
+          </div>
+        </article>
+
+        <div class="results-heading">
+          <div>
+            <p class="eyebrow">Live market read</p>
+            <h2 id="resultTitle">Scan a book to begin</h2>
+          </div>
+          <div id="sourceBadge" class="source-badge">Ready</div>
+        </div>
+
+        <div id="notice" class="notice" hidden></div>
+
+        <div class="metric-grid">
+          <article class="condition-card">
+            <div class="condition-title">
+              <span>Used</span>
+              <strong id="usedRate">--</strong>
+            </div>
+            <dl>
+              <div><dt>Active</dt><dd id="usedActive">--</dd></div>
+              <div><dt>Sold</dt><dd id="usedSold">--</dd></div>
+              <div><dt>Avg sold</dt><dd id="usedAverage">--</dd></div>
+              <div><dt>Range</dt><dd id="usedRange">--</dd></div>
+            </dl>
+          </article>
+
+          <article class="condition-card">
+            <div class="condition-title">
+              <span>New</span>
+              <strong id="newRate">--</strong>
+            </div>
+            <dl>
+              <div><dt>Active</dt><dd id="newActive">--</dd></div>
+              <div><dt>Sold</dt><dd id="newSold">--</dd></div>
+              <div><dt>Avg sold</dt><dd id="newAverage">--</dd></div>
+              <div><dt>Range</dt><dd id="newRange">--</dd></div>
+            </dl>
+          </article>
+        </div>
+
+        <div class="formula-row">
+          <span>Sell-through rate</span>
+          <strong>sold listings / active listings</strong>
+        </div>
+
+        <section class="examples">
+          <h3>Recent sold examples</h3>
+          <ul id="examplesList">
+            <li>No examples yet.</li>
+          </ul>
+        </section>
+
+        <div class="actions">
+          <button id="keepBook" class="primary" type="button" disabled>Keep</button>
+          <button id="skipBook" type="button" disabled>Skip</button>
+        </div>
+
+        <section class="examples">
+          <div class="section-heading">
+            <h3>Kept books</h3>
+            <button id="exportCsv" type="button">Export CSV</button>
+          </div>
+          <ul id="keptList">
+            <li>No kept books yet.</li>
+          </ul>
+        </section>
+      </section>
+    </main>
+    <script src="/zxing-browser.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

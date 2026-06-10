@@ -1,0 +1,9 @@
+{
+  "name": "eBay Book Scanner",
+  "short_name": "Book Scanner",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef2f6",
+  "theme_color": "#0a7f73",
+  "icons": []
+}
