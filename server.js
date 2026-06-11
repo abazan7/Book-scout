@@ -98,7 +98,7 @@ async function searchActive(gtin, conditionIds, token) {
   const filter = `conditionIds:{${conditionIds.join("|")}},buyingOptions:{FIXED_PRICE|AUCTION}`;
   const data = await ebayGet(
     "/buy/browse/v1/item_summary/search",
-    { gtin, limit: "200", filter, fieldgroups: "CONDITION_REFINEMENTS" },
+    { q: gtin, limit: "200", filter, fieldgroups: "CONDITION_REFINEMENTS" },
     token
   );
   return {
