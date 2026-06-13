@@ -15,8 +15,7 @@ const notice = document.querySelector("#notice");
 const examplesList = document.querySelector("#examplesList");
 const manualSoldPanel = document.querySelector("#manualSoldPanel");
 const applyManualStatsButton = document.querySelector("#applyManualStats");
-const openUsedSold = document.querySelector("#openUsedSold");
-const openNewSold = document.querySelector("#openNewSold");
+const openSoldSearch = document.querySelector("#openSoldSearch");
 const manualUsedSold = document.querySelector("#manualUsedSold");
 const manualUsedAvg = document.querySelector("#manualUsedAvg");
 const manualNewSold = document.querySelector("#manualNewSold");
@@ -110,20 +109,17 @@ async function lookup(code) {
   }
 }
 
-function ebaySoldUrl(isbn, condition) {
+function ebaySoldUrl(isbn) {
   const url = new URL("https://www.ebay.com/sch/i.html");
   url.searchParams.set("_nkw", isbn);
   url.searchParams.set("LH_Sold", "1");
   url.searchParams.set("LH_Complete", "1");
-  if (condition === "used") url.searchParams.set("LH_ItemCondition", "3000");
-  if (condition === "new") url.searchParams.set("LH_ItemCondition", "1000");
   return url.toString();
 }
 
 function prepareManualSoldPanel(isbn) {
   manualSoldPanel.hidden = false;
-  openUsedSold.href = ebaySoldUrl(isbn, "used");
-  openNewSold.href = ebaySoldUrl(isbn, "new");
+  openSoldSearch.href = ebaySoldUrl(isbn);
   manualUsedSold.value = "";
   manualUsedAvg.value = "";
   manualNewSold.value = "";
