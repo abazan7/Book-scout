@@ -61,6 +61,35 @@
 
         <div id="notice" class="notice" hidden></div>
 
+        <section id="manualSoldPanel" class="manual-panel" hidden>
+          <div class="section-heading">
+            <h3>Plan B solds</h3>
+            <button id="applyManualStats" type="button">Apply</button>
+          </div>
+          <div class="manual-links">
+            <a id="openUsedSold" target="_blank" rel="noreferrer">Open used solds</a>
+            <a id="openNewSold" target="_blank" rel="noreferrer">Open new solds</a>
+          </div>
+          <div class="manual-grid">
+            <label>
+              Used sold
+              <input id="manualUsedSold" type="number" inputmode="numeric" min="0" step="1" placeholder="0" />
+            </label>
+            <label>
+              Used avg
+              <input id="manualUsedAvg" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" />
+            </label>
+            <label>
+              New sold
+              <input id="manualNewSold" type="number" inputmode="numeric" min="0" step="1" placeholder="0" />
+            </label>
+            <label>
+              New avg
+              <input id="manualNewAvg" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" />
+            </label>
+          </div>
+        </section>
+
         <div class="metric-grid">
           <article class="condition-card">
             <div class="condition-title">

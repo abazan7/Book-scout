@@ -13,6 +13,14 @@ const resultTitle = document.querySelector("#resultTitle");
 const sourceBadge = document.querySelector("#sourceBadge");
 const notice = document.querySelector("#notice");
 const examplesList = document.querySelector("#examplesList");
+const manualSoldPanel = document.querySelector("#manualSoldPanel");
+const applyManualStatsButton = document.querySelector("#applyManualStats");
+const openUsedSold = document.querySelector("#openUsedSold");
+const openNewSold = document.querySelector("#openNewSold");
+const manualUsedSold = document.querySelector("#manualUsedSold");
+const manualUsedAvg = document.querySelector("#manualUsedAvg");
+const manualNewSold = document.querySelector("#manualNewSold");
+const manualNewAvg = document.querySelector("#manualNewAvg");
 const keepBookButton = document.querySelector("#keepBook");
 const skipBookButton = document.querySelector("#skipBook");
 const exportCsvButton = document.querySelector("#exportCsv");
@@ -58,6 +66,11 @@ function count(value) {
   return new Intl.NumberFormat("en-US").format(value || 0);
 }
 
+function numberInputValue(input) {
+  const value = Number(input.value);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
 function csvCell(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
@@ -86,6 +99,7 @@ async function lookup(code) {
     renderBook(book);
     renderMarket(market);
     currentBook = { ...book, market };
+    prepareManualSoldPanel(normalized);
     keepBookButton.disabled = false;
     skipBookButton.disabled = false;
   } catch (error) {
@@ -93,6 +107,50 @@ async function lookup(code) {
     sourceBadge.textContent = "Error";
     notice.hidden = false;
     notice.textContent = error.message || "Search error. Try again.";
+  }
+}
+
+function ebaySoldUrl(isbn, condition) {
+  const url = new URL("https://www.ebay.com/sch/i.html");
+  url.searchParams.set("_nkw", isbn);
+  url.searchParams.set("LH_Sold", "1");
+  url.searchParams.set("LH_Complete", "1");
+  if (condition === "used") url.searchParams.set("LH_ItemCondition", "3000");
+  if (condition === "new") url.searchParams.set("LH_ItemCondition", "1000");
+  return url.toString();
+}
+
+function prepareManualSoldPanel(isbn) {
+  manualSoldPanel.hidden = false;
+  openUsedSold.href = ebaySoldUrl(isbn, "used");
+  openNewSold.href = ebaySoldUrl(isbn, "new");
+  manualUsedSold.value = "";
+  manualUsedAvg.value = "";
+  manualNewSold.value = "";
+  manualNewAvg.value = "";
+}
+
+function applyManualStats() {
+  if (!currentBook?.market) return;
+  applyManualCondition("used", numberInputValue(manualUsedSold), numberInputValue(manualUsedAvg));
+  applyManualCondition("new", numberInputValue(manualNewSold), numberInputValue(manualNewAvg));
+  renderMarket(currentBook.market);
+  notice.hidden = false;
+  notice.textContent = "Plan B mode: sold stats were entered manually from eBay sold search.";
+}
+
+function applyManualCondition(key, soldCount, averagePrice) {
+  const row = currentBook.market.results[key];
+  if (soldCount !== null) {
+    row.soldAccess = "manual";
+    row.soldCount = soldCount;
+    row.sellThroughRate = row.activeCount ? soldCount / row.activeCount : null;
+  }
+  if (averagePrice !== null) {
+    row.averagePrice = averagePrice;
+    row.currency = "USD";
+    row.minPrice = null;
+    row.maxPrice = null;
   }
 }
 
@@ -287,6 +345,7 @@ function stopCamera() {
 function keepCurrentBook() {
   if (!currentBook) return;
   const used = currentBook.market.results.used;
+  const fresh = currentBook.market.results.new;
   const next = {
     isbn: currentBook.isbn,
     title: currentBook.title,
@@ -295,6 +354,10 @@ function keepCurrentBook() {
     usedSold: used.soldCount,
     usedSellThrough: percent(used.sellThroughRate),
     usedAverage: money(used.averagePrice, used.currency),
+    newActive: fresh.activeCount,
+    newSold: fresh.soldCount,
+    newSellThrough: percent(fresh.sellThroughRate),
+    newAverage: money(fresh.averagePrice, fresh.currency),
     date: new Date().toLocaleString(),
   };
   keptBooks.unshift(next);
@@ -321,11 +384,24 @@ function renderKeptBooks() {
     return;
   }
 
-  for (const book of keptBooks.slice(0, 20)) {
+  keptBooks.slice(0, 20).forEach((book, index) => {
     const item = document.createElement("li");
-    item.innerHTML = `<strong>${book.title}</strong><br>${book.isbn} · Used STR ${book.usedSellThrough} · Avg ${book.usedAverage}`;
+    item.className = "kept-item";
+    item.innerHTML = `
+      <div>
+        <strong>${book.title}</strong><br>
+        ${book.isbn} · Used STR ${book.usedSellThrough} · Avg ${book.usedAverage}
+      </div>
+      <button type="button" data-remove-index="${index}">Remove</button>
+    `;
     keptList.append(item);
-  }
+  });
+}
+
+function removeKeptBook(index) {
+  keptBooks.splice(index, 1);
+  localStorage.setItem("keptBooks", JSON.stringify(keptBooks));
+  renderKeptBooks();
 }
 
 function exportCSV() {
@@ -335,7 +411,7 @@ function exportCSV() {
   }
 
   const rows = [
-    ["ISBN", "Title", "Author", "Used Active", "Used Sold", "Used STR", "Used Avg", "Date"],
+    ["ISBN", "Title", "Author", "Used Active", "Used Sold", "Used STR", "Used Avg", "New Active", "New Sold", "New STR", "New Avg", "Date"],
     ...keptBooks.map((book) => [
       book.isbn,
       book.title,
@@ -344,6 +420,10 @@ function exportCSV() {
       book.usedSold,
       book.usedSellThrough,
       book.usedAverage,
+      book.newActive,
+      book.newSold,
+      book.newSellThrough,
+      book.newAverage,
       book.date,
     ]),
   ];
@@ -369,6 +449,12 @@ stopScan.addEventListener("click", stopCamera);
 keepBookButton.addEventListener("click", keepCurrentBook);
 skipBookButton.addEventListener("click", skipCurrentBook);
 exportCsvButton.addEventListener("click", exportCSV);
+applyManualStatsButton.addEventListener("click", applyManualStats);
+keptList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-index]");
+  if (!button) return;
+  removeKeptBook(Number(button.dataset.removeIndex));
+});
 
 lookupForm.addEventListener("submit", (event) => {
   event.preventDefault();
